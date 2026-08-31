@@ -31,7 +31,7 @@ def status() -> None:
         raise typer.Exit()
 
     table = Table(title="Recent Sync Runs")
-    for column in ("Source", "Started", "Status", "Fetched", "New", "Updated"):
+    for column in ("Source", "Started", "Status", "Fetched", "New", "Updated", "Filtered"):
         table.add_column(column)
     for log in logs:
         table.add_row(
@@ -41,6 +41,7 @@ def status() -> None:
             str(log.records_fetched),
             str(log.records_new),
             str(log.records_updated),
+            str(log.records_filtered),
         )
     console.print(table)
 
@@ -79,10 +80,10 @@ def run(
     console.print(mode)
 
     table = Table(title="Run Results")
-    for column in ("Source", "Fetched", "New", "Updated", "Errors"):
+    for column in ("Source", "Fetched", "New", "Updated", "Filtered", "Errors"):
         table.add_column(column)
     for r in results:
-        table.add_row(r.source, str(r.fetched), str(r.new), str(r.updated), str(r.errors))
+        table.add_row(r.source, str(r.fetched), str(r.new), str(r.updated), str(r.filtered), str(r.errors))
     console.print(table)
 
     for r in results:

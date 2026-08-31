@@ -1,9 +1,11 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 from dotenv import load_dotenv
+
+from .pipeline.relevance import RelevanceRules
 
 load_dotenv()
 
@@ -13,6 +15,7 @@ class PortalConfig:
     name: str
     scraper_class: str
     enabled: bool = True
+    relevance: RelevanceRules = field(default_factory=RelevanceRules)
 
 
 @dataclass
@@ -38,7 +41,12 @@ def load_portals(config_path: str = "config/portals.yaml") -> list[PortalConfig]
         return []
     with path.open() as f:
         raw = yaml.safe_load(f) or {}
-    return [PortalConfig(**p) for p in raw.get("portals", [])]
+
+    portals = []
+    for entry in raw.get("portals", []):
+        relevance_data = entry.pop("relevance", None) or {}
+        portals.append(PortalConfig(relevance=RelevanceRules(**relevance_data), **entry))
+    return portals
 
 
 settings = load_settings()
