@@ -212,5 +212,29 @@ def sync_calendar_cmd(
         console.print(f"[red]  {msg}[/red]")
 
 
+@app.command()
+def reconcile() -> None:
+    """Read-only diff: DB vs. Excel (status) and DB vs. Pipedrive (title,
+    value). Reports discrepancies for a human to resolve — never writes a
+    fix itself."""
+    from .pipeline.reconcile import reconcile as run_reconcile
+
+    result = run_reconcile(settings)
+    console.print(f"Checked {result.checked} tenders.")
+
+    if result.discrepancies:
+        table = Table(title="Discrepancies")
+        for column in ("External ID", "Field", "DB value", "Other value", "Other system"):
+            table.add_column(column)
+        for d in result.discrepancies:
+            table.add_row(d.external_id, d.field, d.db_value, d.other_value, d.other_system)
+        console.print(table)
+    else:
+        console.print("[green]No discrepancies found.[/green]")
+
+    for err in result.errors:
+        console.print(f"[red]{err}[/red]")
+
+
 if __name__ == "__main__":
     app()
