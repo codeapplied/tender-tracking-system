@@ -7,10 +7,11 @@ generic, sanitized logic only. No employer-specific data, workflows, or branding
 
 ## Status
 
-🚧 Early development. DB models, config loading, CLI, scraper interface, the
-daily pipeline (normalize/filter/dedupe/store), Excel export, and optional
-cloud sync (OneDrive/SharePoint) are in place. Pipedrive sync is not built
-yet — see
+🚧 Early development. Core pipeline is complete: DB models, config loading,
+CLI, scraper interface, the daily pipeline (normalize/filter/dedupe/store),
+Excel export, optional cloud sync (OneDrive/SharePoint), and Pipedrive deal
+sync are all in place. Remaining work is calendar sync, cross-system
+reconciliation checks, and polish (health CLI, docs, tests) — see
 [open issues](https://github.com/codeapplied/tender-tracking-system/issues)
 and the [project board](https://github.com/users/codeapplied/projects/4).
 
@@ -49,6 +50,11 @@ tendertracker init
 - `tendertracker sync-cloud` — upload the current Excel tracker to
   OneDrive/SharePoint via Microsoft Graph. Optional — skip entirely and the
   tracker stays a local file only. Setup: [docs/CLOUD_SYNC_SETUP.md](docs/CLOUD_SYNC_SETUP.md).
+- `tendertracker sync-pipedrive` — create/update Pipedrive deals for tracked
+  tenders (org find-or-create, deal, a note with source metadata). **Plan-only
+  by default**, `--apply` to write for real. Also runs automatically as part
+  of `run --apply` if `PIPEDRIVE_API_TOKEN`/`PIPEDRIVE_DOMAIN` are set —
+  silently skipped otherwise, same pattern as cloud sync.
 
 ## License
 

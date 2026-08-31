@@ -92,6 +92,7 @@ def run(
 
     if apply:
         _export_excel_and_cloud_sync()
+        _sync_pipedrive_if_configured()
 
 
 def _export_excel_and_cloud_sync() -> None:
@@ -108,6 +109,19 @@ def _export_excel_and_cloud_sync() -> None:
             console.print(f"[green]Cloud sync:[/green] {result.get('webUrl', settings.ms_graph_upload_path)}")
     except Exception as exc:
         console.print(f"[red]Cloud sync failed: {exc}[/red]")
+
+
+def _sync_pipedrive_if_configured() -> None:
+    from .pipeline.sync_pipedrive import is_configured, sync_pipedrive
+
+    if not is_configured(settings):
+        return
+    result = sync_pipedrive(settings, apply=True)
+    console.print(
+        f"[green]Pipedrive synced:[/green] {result.created} created, {result.updated} updated, {result.errors} errors"
+    )
+    for msg in result.error_messages[:5]:
+        console.print(f"[red]  {msg}[/red]")
 
 
 @app.command()
@@ -131,6 +145,29 @@ def sync_cloud() -> None:
 
     result = sync_excel_if_configured(settings)
     console.print(f"[green]Cloud sync:[/green] {result.get('webUrl', settings.ms_graph_upload_path)}")
+
+
+@app.command(name="sync-pipedrive")
+def sync_pipedrive_cmd(
+    apply: bool = typer.Option(
+        False, "--apply", help="Actually write changes. Default is plan-only (dry-run) — no Pipedrive writes."
+    ),
+) -> None:
+    """Create/update Pipedrive deals for tracked tenders. Plan-only by default."""
+    from .pipeline.sync_pipedrive import is_configured, sync_pipedrive
+
+    if not is_configured(settings):
+        console.print(
+            "[yellow]Pipedrive not configured — set PIPEDRIVE_API_TOKEN and PIPEDRIVE_DOMAIN in .env.[/yellow]"
+        )
+        raise typer.Exit(code=1)
+
+    result = sync_pipedrive(settings, apply=apply)
+    mode = "[bold green]APPLIED[/bold green]" if apply else "[bold yellow]PLAN ONLY (dry-run) — pass --apply to write for real[/bold yellow]"
+    console.print(mode)
+    console.print(f"Created: {result.created}  Updated: {result.updated}  Errors: {result.errors}")
+    for msg in result.error_messages[:5]:
+        console.print(f"[red]  {msg}[/red]")
 
 
 if __name__ == "__main__":
