@@ -1,0 +1,57 @@
+[
+  {
+    "external_id": "SAMPLE-2026-0001",
+    "title": "Road Resurfacing — Sample Municipality Ward 3",
+    "category": "Construction",
+    "published_date": "2026-08-01",
+    "closing_date": "2026-09-30",
+    "estimated_value": 450000,
+    "currency": "CAD",
+    "url": "https://example.org/tenders/SAMPLE-2026-0001",
+    "description": "Asphalt resurfacing and drainage repair for approximately 4km of arterial road."
+  },
+  {
+    "external_id": "SAMPLE-2026-0002",
+    "title": "MRI Equipment Procurement — Sample Health Authority",
+    "category": "Goods",
+    "published_date": "2026-08-05",
+    "closing_date": "2026-10-15",
+    "estimated_value": 2100000,
+    "currency": "CAD",
+    "url": "https://example.org/tenders/SAMPLE-2026-0002",
+    "description": "Supply, delivery, and installation of one 1.5T MRI unit with a 5-year service agreement."
+  },
+  {
+    "external_id": "SAMPLE-2026-0003",
+    "title": "IT Helpdesk Support Services — Sample School District",
+    "category": "Services",
+    "published_date": "2026-08-10",
+    "closing_date": "2026-09-20",
+    "estimated_value": 180000,
+    "currency": "CAD",
+    "url": "https://example.org/tenders/SAMPLE-2026-0003",
+    "description": "Three-year managed IT helpdesk support contract covering 12 school sites."
+  },
+  {
+    "external_id": "SAMPLE-2026-0004",
+    "title": "Fleet Vehicle Charging Infrastructure — Sample Regional District",
+    "category": "Installation",
+    "published_date": "2026-08-12",
+    "closing_date": "2026-11-01",
+    "estimated_value": 760000,
+    "currency": "CAD",
+    "url": "https://example.org/tenders/SAMPLE-2026-0004",
+    "description": "Design and installation of EV charging infrastructure for a 40-vehicle municipal fleet depot."
+  },
+  {
+    "external_id": "SAMPLE-2026-0005",
+    "title": "Community Centre Roof Replacement — Sample Township",
+    "category": "Construction",
+    "published_date": "2026-08-15",
+    "closing_date": "2026-09-25",
+    "estimated_value": 310000,
+    "currency": "CAD",
+    "url": "https://example.org/tenders/SAMPLE-2026-0005",
+    "description": "Full roof replacement including insulation upgrade for a 1,200 sq. m. community centre."
+  }
+]
