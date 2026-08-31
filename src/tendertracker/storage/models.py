@@ -27,6 +27,7 @@ class Tender(Base):
     title: Mapped[str] = mapped_column(Text)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     category: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    organization: Mapped[str | None] = mapped_column(Text, nullable=True)
     published_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     closing_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     estimated_value: Mapped[float | None] = mapped_column(Float, nullable=True)
