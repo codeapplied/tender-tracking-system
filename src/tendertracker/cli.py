@@ -60,10 +60,34 @@ def sources() -> None:
 
 
 @app.command()
-def run() -> None:
-    """Run the daily fetch pipeline."""
-    console.print("[red]Pipeline not implemented yet — see Phase 2/3 issues.[/red]")
-    raise typer.Exit(code=1)
+def run(
+    apply: bool = typer.Option(
+        False, "--apply", help="Actually write changes. Default is plan-only (dry-run) — no DB writes."
+    ),
+) -> None:
+    """Run the daily fetch pipeline. Plan-only by default — pass --apply to write for real."""
+    from .pipeline.run_daily import run_all
+
+    results = run_all(apply=apply)
+    if not results:
+        console.print(
+            "[yellow]No enabled sources to run. Copy config/portals.example.yaml to config/portals.yaml.[/yellow]"
+        )
+        raise typer.Exit()
+
+    mode = "[bold green]APPLIED[/bold green]" if apply else "[bold yellow]PLAN ONLY (dry-run) — pass --apply to write for real[/bold yellow]"
+    console.print(mode)
+
+    table = Table(title="Run Results")
+    for column in ("Source", "Fetched", "New", "Updated", "Errors"):
+        table.add_column(column)
+    for r in results:
+        table.add_row(r.source, str(r.fetched), str(r.new), str(r.updated), str(r.errors))
+    console.print(table)
+
+    for r in results:
+        for msg in r.error_messages[:5]:
+            console.print(f"[red]  {r.source}: {msg}[/red]")
 
 
 if __name__ == "__main__":

@@ -7,9 +7,10 @@ generic, sanitized logic only. No employer-specific data, workflows, or branding
 
 ## Status
 
-🚧 Early development. DB models, config loading, and CLI skeleton are in place.
-Scraper implementations, the daily pipeline, and CRM sync are not built yet —
-see [open issues](https://github.com/codeapplied/tender-tracking-system/issues)
+🚧 Early development. DB models, config loading, CLI, scraper interface, and
+the daily pipeline (normalize/dedupe/store) are in place. Excel export and
+Pipedrive sync are not built yet — see
+[open issues](https://github.com/codeapplied/tender-tracking-system/issues)
 and the [project board](https://github.com/users/codeapplied/projects/4).
 
 ## Architecture
@@ -34,7 +35,10 @@ tendertracker init
 - `tendertracker init` — create the database
 - `tendertracker status` — recent sync runs per source
 - `tendertracker sources` — list configured portal sources
-- `tendertracker run` — run the daily fetch pipeline (not yet implemented)
+- `tendertracker run` — run the daily fetch pipeline. **Plan-only by default**
+  (fetches, normalizes, computes what would change, logs the run — no DB
+  writes). Pass `--apply` to actually write. This default-safe direction was
+  a deliberate choice, not an oversight — see the pipeline module for why.
 
 ## License
 
