@@ -24,6 +24,7 @@ class RunResult:
     fetched: int = 0
     new: int = 0
     updated: int = 0
+    filtered: int = 0
     errors: int = 0
     error_messages: list[str] = field(default_factory=list)
 
@@ -55,9 +56,11 @@ def _upsert(session: Session, raw, normalized: dict) -> str:
 
 
 def run_source(session: Session, portal: PortalConfig) -> RunResult:
-    """Fetch + normalize + upsert one source. Per-record error isolation:
-    one bad record is logged and skipped, it doesn't abort the run."""
+    """Fetch + normalize + filter + upsert one source. Per-record error
+    isolation: one bad record is logged and skipped, it doesn't abort the
+    run."""
     from .normalize import normalize
+    from .relevance import evaluate
 
     result = RunResult(source=portal.name)
     scraper = _load_scraper(portal)
@@ -66,6 +69,14 @@ def run_source(session: Session, portal: PortalConfig) -> RunResult:
         result.fetched += 1
         try:
             normalized = normalize(raw)
+
+            text = f"{normalized.get('title') or ''} {normalized.get('description') or ''}"
+            passes, score = evaluate(portal.relevance, text)
+            if not passes:
+                result.filtered += 1
+                continue
+            normalized["relevance_score"] = score
+
             outcome = _upsert(session, raw, normalized)
             if outcome == "new":
                 result.new += 1
@@ -119,6 +130,7 @@ def run_all(apply: bool = False) -> list[RunResult]:
             log_entry.records_fetched = result.fetched
             log_entry.records_new = result.new
             log_entry.records_updated = result.updated
+            log_entry.records_filtered = result.filtered
             if result.error_messages:
                 log_entry.error_message = "; ".join(result.error_messages[:20])
             session.commit()

@@ -34,6 +34,7 @@ class Tender(Base):
     url: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(50), default="open")
     pipedrive_deal_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    relevance_score: Mapped[int | None] = mapped_column(nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
@@ -50,5 +51,6 @@ class SyncLog(Base):
     records_fetched: Mapped[int] = mapped_column(default=0)
     records_new: Mapped[int] = mapped_column(default=0)
     records_updated: Mapped[int] = mapped_column(default=0)
+    records_filtered: Mapped[int] = mapped_column(default=0)
     status: Mapped[str] = mapped_column(String(20), default="running")  # running | success | failed
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

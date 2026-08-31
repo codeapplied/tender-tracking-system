@@ -1,11 +1,21 @@
 # Copy this file to config/portals.yaml and configure your own tender sources.
 # scraper_class must be an importable dotted path implementing the Scraper
 # interface (see src/tendertracker/scrapers/base.py, added in Phase 2).
+#
+# `relevance` is optional per source — omit it entirely and every fetched
+# record passes through unfiltered. When present: must_match gates (at least
+# one term has to appear in title+description or the record is dropped),
+# boost raises relevance_score without gating, exclude rejects regardless of
+# must_match.
 
 portals:
   - name: sandbox
     scraper_class: tendertracker.scrapers.sandbox_feed.SandboxFeedScraper
     enabled: true
+    relevance:
+      must_match: ["EV", "electric vehicle", "charging"]
+      boost: ["fleet", "infrastructure"]
+      exclude: []
 
   # Optional real-data source — NOT enabled by default. Has a genuine
   # robots.txt/license ambiguity, see canadabuys_feed.py's docstring.
