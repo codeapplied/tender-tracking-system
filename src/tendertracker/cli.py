@@ -90,6 +90,23 @@ def run(
         for msg in r.error_messages[:5]:
             console.print(f"[red]  {r.source}: {msg}[/red]")
 
+    if apply:
+        from .storage.excel_export import export_to_excel
+
+        with get_session_factory(get_engine(settings.db_path))() as session:
+            active, archived = export_to_excel(session, settings.excel_export_path)
+        console.print(f"[green]Excel synced to {settings.excel_export_path}[/green] ({active} active, {archived} archived)")
+
+
+@app.command()
+def export() -> None:
+    """Regenerate the Excel tracker from current DB state (no pipeline run)."""
+    from .storage.excel_export import export_to_excel
+
+    with get_session_factory(get_engine(settings.db_path))() as session:
+        active, archived = export_to_excel(session, settings.excel_export_path)
+    console.print(f"[green]Excel synced to {settings.excel_export_path}[/green] ({active} active, {archived} archived)")
+
 
 if __name__ == "__main__":
     app()
