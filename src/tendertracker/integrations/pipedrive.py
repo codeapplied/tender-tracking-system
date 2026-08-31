@@ -25,6 +25,9 @@ class PipedriveClient:
             raise PipedriveError(f"{method} {path} returned success=false: {data}")
         return data.get("data")
 
+    def get_deal(self, deal_id: int) -> dict:
+        return self._request("GET", f"/deals/{deal_id}")
+
     def find_or_create_organization(self, name: str) -> int:
         results = self._request("GET", "/organizations/search", params={"term": name, "fields": "name"})
         for item in (results or {}).get("items", []):

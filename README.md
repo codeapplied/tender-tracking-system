@@ -7,11 +7,12 @@ generic, sanitized logic only. No employer-specific data, workflows, or branding
 
 ## Status
 
-🚧 Early development. Core pipeline is complete: DB models, config loading,
-CLI, scraper interface, the daily pipeline (normalize/filter/dedupe/store),
-Excel export, optional cloud sync (OneDrive/SharePoint + Outlook calendar),
-and Pipedrive deal sync are all in place. Remaining work is cross-system
-reconciliation checks and polish (health CLI, docs, tests) — see
+🚧 Early development. Core pipeline plus governance layer are complete: DB
+models, config loading, CLI, scraper interface, the daily pipeline
+(normalize/filter/dedupe/store), Excel export, optional cloud sync
+(OneDrive/SharePoint + Outlook calendar), Pipedrive deal sync, and read-only
+reconciliation checks. Remaining work is polish (health CLI, docs, tests) —
+see
 [open issues](https://github.com/codeapplied/tender-tracking-system/issues)
 and the [project board](https://github.com/users/codeapplied/projects/4).
 
@@ -62,6 +63,12 @@ tendertracker init
   [docs/CLOUD_SYNC_SETUP.md](docs/CLOUD_SYNC_SETUP.md) for why and how to
   configure. Also runs automatically as part of `run --apply` if configured;
   cleans up (deletes) the calendar event when a tender closes.
+- `tendertracker reconcile` — read-only diff: DB vs. Excel (the status
+  field, the one thing the spreadsheet's dropdown lets a human edit) and DB
+  vs. Pipedrive (title, value — in case a deal was independently edited in
+  Pipedrive's own UI). Reports discrepancies for a human to resolve; **never
+  writes a fix itself** — matches the governance-over-automation approach
+  documented for the rest of this project.
 
 ## License
 
