@@ -91,21 +91,46 @@ def run(
             console.print(f"[red]  {r.source}: {msg}[/red]")
 
     if apply:
-        from .storage.excel_export import export_to_excel
-
-        with get_session_factory(get_engine(settings.db_path))() as session:
-            active, archived = export_to_excel(session, settings.excel_export_path)
-        console.print(f"[green]Excel synced to {settings.excel_export_path}[/green] ({active} active, {archived} archived)")
+        _export_excel_and_cloud_sync()
 
 
-@app.command()
-def export() -> None:
-    """Regenerate the Excel tracker from current DB state (no pipeline run)."""
+def _export_excel_and_cloud_sync() -> None:
+    from .integrations.onedrive_sync import sync_excel_if_configured
     from .storage.excel_export import export_to_excel
 
     with get_session_factory(get_engine(settings.db_path))() as session:
         active, archived = export_to_excel(session, settings.excel_export_path)
     console.print(f"[green]Excel synced to {settings.excel_export_path}[/green] ({active} active, {archived} archived)")
+
+    try:
+        result = sync_excel_if_configured(settings)
+        if result is not None:
+            console.print(f"[green]Cloud sync:[/green] {result.get('webUrl', settings.ms_graph_upload_path)}")
+    except Exception as exc:
+        console.print(f"[red]Cloud sync failed: {exc}[/red]")
+
+
+@app.command()
+def export() -> None:
+    """Regenerate the Excel tracker from current DB state (no pipeline run).
+    Also syncs to OneDrive/SharePoint if configured."""
+    _export_excel_and_cloud_sync()
+
+
+@app.command(name="sync-cloud")
+def sync_cloud() -> None:
+    """Upload the current Excel tracker to OneDrive/SharePoint (Microsoft Graph)."""
+    from .integrations.onedrive_sync import is_configured, sync_excel_if_configured
+
+    if not is_configured(settings):
+        console.print(
+            "[yellow]Cloud sync not configured — set MS_GRAPH_TENANT_ID, MS_GRAPH_CLIENT_ID, "
+            "MS_GRAPH_CLIENT_SECRET, MS_GRAPH_DRIVE_ID in .env. See docs/CLOUD_SYNC_SETUP.md.[/yellow]"
+        )
+        raise typer.Exit(code=1)
+
+    result = sync_excel_if_configured(settings)
+    console.print(f"[green]Cloud sync:[/green] {result.get('webUrl', settings.ms_graph_upload_path)}")
 
 
 if __name__ == "__main__":
