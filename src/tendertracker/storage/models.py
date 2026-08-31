@@ -36,6 +36,13 @@ class Tender(Base):
     status: Mapped[str] = mapped_column(String(50), default="open")
     pipedrive_deal_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     relevance_score: Mapped[int | None] = mapped_column(nullable=True)
+    calendar_event_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Snapshot of what was last written to the calendar — diffed against on
+    # the next sync instead of re-fetching the event from the Graph API,
+    # since calendar APIs can normalize/rewrite values on the way back out
+    # (see design notes), making a live re-fetch diff unreliable.
+    calendar_synced_title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    calendar_synced_closing_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 

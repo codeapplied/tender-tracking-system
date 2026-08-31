@@ -29,6 +29,7 @@ class Settings:
     ms_graph_client_secret: str | None
     ms_graph_drive_id: str | None
     ms_graph_upload_path: str
+    ms_graph_calendar_user_id: str | None
 
 
 def load_settings() -> Settings:
@@ -42,6 +43,7 @@ def load_settings() -> Settings:
         ms_graph_client_secret=os.getenv("MS_GRAPH_CLIENT_SECRET"),
         ms_graph_drive_id=os.getenv("MS_GRAPH_DRIVE_ID"),
         ms_graph_upload_path=os.getenv("MS_GRAPH_UPLOAD_PATH", "TenderTracker/tenders.xlsx"),
+        ms_graph_calendar_user_id=os.getenv("MS_GRAPH_CALENDAR_USER_ID"),
     )
 
 

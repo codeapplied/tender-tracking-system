@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING
 
 import requests
 
+from .graph_auth import GRAPH_BASE, get_access_token
+
 if TYPE_CHECKING:
     from ..config import Settings
-
-GRAPH_BASE = "https://graph.microsoft.com/v1.0"
 
 # Simple (single-request) upload only supports files under 4MB — plenty for
 # an Excel tracker. A resumable upload session would be needed above that;
@@ -16,27 +16,6 @@ MAX_SIMPLE_UPLOAD_BYTES = 4 * 1024 * 1024
 
 class OneDriveSyncError(Exception):
     pass
-
-
-def _get_access_token(tenant_id: str, client_id: str, client_secret: str) -> str:
-    """App-only (client credentials) OAuth flow — no signed-in user needed,
-    suitable for an unattended daily job. Requires an Azure AD app
-    registration with an application (not delegated) Graph permission such
-    as Files.ReadWrite.All or Sites.ReadWrite.All, admin-consented. See
-    docs/CLOUD_SYNC_SETUP.md."""
-    url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-    response = requests.post(
-        url,
-        data={
-            "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
-            "scope": "https://graph.microsoft.com/.default",
-        },
-        timeout=30,
-    )
-    response.raise_for_status()
-    return response.json()["access_token"]
 
 
 def sync_file_to_onedrive(
@@ -56,7 +35,7 @@ def sync_file_to_onedrive(
             "limit — a resumable upload session would be needed, not implemented."
         )
 
-    token = _get_access_token(tenant_id, client_id, client_secret)
+    token = get_access_token(tenant_id, client_id, client_secret)
     content = Path(local_path).read_bytes()
 
     url = f"{GRAPH_BASE}/drives/{drive_id}/root:/{remote_path}:/content"

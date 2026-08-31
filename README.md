@@ -9,9 +9,9 @@ generic, sanitized logic only. No employer-specific data, workflows, or branding
 
 🚧 Early development. Core pipeline is complete: DB models, config loading,
 CLI, scraper interface, the daily pipeline (normalize/filter/dedupe/store),
-Excel export, optional cloud sync (OneDrive/SharePoint), and Pipedrive deal
-sync are all in place. Remaining work is calendar sync, cross-system
-reconciliation checks, and polish (health CLI, docs, tests) — see
+Excel export, optional cloud sync (OneDrive/SharePoint + Outlook calendar),
+and Pipedrive deal sync are all in place. Remaining work is cross-system
+reconciliation checks and polish (health CLI, docs, tests) — see
 [open issues](https://github.com/codeapplied/tender-tracking-system/issues)
 and the [project board](https://github.com/users/codeapplied/projects/4).
 
@@ -55,6 +55,13 @@ tendertracker init
   by default**, `--apply` to write for real. Also runs automatically as part
   of `run --apply` if `PIPEDRIVE_API_TOKEN`/`PIPEDRIVE_DOMAIN` are set —
   silently skipped otherwise, same pattern as cloud sync.
+- `tendertracker sync-calendar` — project open tenders' closing dates as
+  Outlook calendar events (Microsoft Graph). **Plan-only by default**,
+  `--apply` to write for real. Diffs against a locally-stored snapshot of
+  what was last written rather than re-fetching from the Calendar API — see
+  [docs/CLOUD_SYNC_SETUP.md](docs/CLOUD_SYNC_SETUP.md) for why and how to
+  configure. Also runs automatically as part of `run --apply` if configured;
+  cleans up (deletes) the calendar event when a tender closes.
 
 ## License
 

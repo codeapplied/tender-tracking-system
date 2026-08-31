@@ -93,6 +93,7 @@ def run(
     if apply:
         _export_excel_and_cloud_sync()
         _sync_pipedrive_if_configured()
+        _sync_calendar_if_configured()
 
 
 def _export_excel_and_cloud_sync() -> None:
@@ -119,6 +120,20 @@ def _sync_pipedrive_if_configured() -> None:
     result = sync_pipedrive(settings, apply=True)
     console.print(
         f"[green]Pipedrive synced:[/green] {result.created} created, {result.updated} updated, {result.errors} errors"
+    )
+    for msg in result.error_messages[:5]:
+        console.print(f"[red]  {msg}[/red]")
+
+
+def _sync_calendar_if_configured() -> None:
+    from .pipeline.sync_calendar import is_configured, sync_calendar
+
+    if not is_configured(settings):
+        return
+    result = sync_calendar(settings, apply=True)
+    console.print(
+        f"[green]Calendar synced:[/green] {result.created} created, {result.updated} updated, "
+        f"{result.unchanged} unchanged, {result.deleted} deleted, {result.errors} errors"
     )
     for msg in result.error_messages[:5]:
         console.print(f"[red]  {msg}[/red]")
@@ -166,6 +181,33 @@ def sync_pipedrive_cmd(
     mode = "[bold green]APPLIED[/bold green]" if apply else "[bold yellow]PLAN ONLY (dry-run) — pass --apply to write for real[/bold yellow]"
     console.print(mode)
     console.print(f"Created: {result.created}  Updated: {result.updated}  Errors: {result.errors}")
+    for msg in result.error_messages[:5]:
+        console.print(f"[red]  {msg}[/red]")
+
+
+@app.command(name="sync-calendar")
+def sync_calendar_cmd(
+    apply: bool = typer.Option(
+        False, "--apply", help="Actually write changes. Default is plan-only (dry-run) — no calendar writes."
+    ),
+) -> None:
+    """Project open tenders' closing dates as Outlook calendar events. Plan-only by default."""
+    from .pipeline.sync_calendar import is_configured, sync_calendar
+
+    if not is_configured(settings):
+        console.print(
+            "[yellow]Calendar sync not configured — set MS_GRAPH_TENANT_ID, MS_GRAPH_CLIENT_ID, "
+            "MS_GRAPH_CLIENT_SECRET, MS_GRAPH_CALENDAR_USER_ID in .env. See docs/CLOUD_SYNC_SETUP.md.[/yellow]"
+        )
+        raise typer.Exit(code=1)
+
+    result = sync_calendar(settings, apply=apply)
+    mode = "[bold green]APPLIED[/bold green]" if apply else "[bold yellow]PLAN ONLY (dry-run) — pass --apply to write for real[/bold yellow]"
+    console.print(mode)
+    console.print(
+        f"Created: {result.created}  Updated: {result.updated}  Unchanged: {result.unchanged}  "
+        f"Deleted: {result.deleted}  Errors: {result.errors}"
+    )
     for msg in result.error_messages[:5]:
         console.print(f"[red]  {msg}[/red]")
 
