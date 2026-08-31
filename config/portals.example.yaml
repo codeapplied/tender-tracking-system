@@ -3,6 +3,15 @@
 # interface (see src/tendertracker/scrapers/base.py, added in Phase 2).
 
 portals:
-  - name: example-demo-source
-    scraper_class: tendertracker.scrapers.example_demo_source.ExampleDemoScraper
+  - name: sandbox
+    scraper_class: tendertracker.scrapers.sandbox_feed.SandboxFeedScraper
     enabled: true
+
+  # Optional real-data source — NOT enabled by default. Has a genuine
+  # robots.txt/license ambiguity, see canadabuys_feed.py's docstring.
+  # Decide your own judgment, then set enabled: true.
+  - name: canadabuys-open-data
+    scraper_class: tendertracker.scrapers.canadabuys_feed.CanadaBuysFeedScraper
+    enabled: false
+
+  # Copy scrapers/private_portal_template.py to add a paid aggregator source.
