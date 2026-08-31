@@ -1,5 +1,9 @@
+import logging
+
 import typer
 from rich.console import Console
+from rich.logging import RichHandler
+from rich.markup import escape
 from rich.table import Table
 
 from .config import load_portals, settings
@@ -8,6 +12,17 @@ from .storage.models import SyncLog
 
 app = typer.Typer(help="Tender Tracking System — ops CLI")
 console = Console()
+
+
+@app.callback()
+def main(verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug-level logging.")) -> None:
+    """Tender Tracking System — ops CLI."""
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(console=console, show_path=False)],
+    )
 
 
 @app.command()
@@ -35,7 +50,7 @@ def status() -> None:
         table.add_column(column)
     for log in logs:
         table.add_row(
-            log.source,
+            escape(log.source),
             str(log.started_at),
             log.status,
             str(log.records_fetched),
@@ -44,6 +59,58 @@ def status() -> None:
             str(log.records_filtered),
         )
     console.print(table)
+
+
+@app.command()
+def health() -> None:
+    """Per-source pipeline health: last run, last success, error counts.
+    The "at a glance" view — 'status' shows recent runs flat across all
+    sources, which can bury a quiet source's last run under a noisy one."""
+    from .pipeline.health import get_health_summary
+
+    engine = get_engine(settings.db_path)
+    with get_session_factory(engine)() as session:
+        summary = get_health_summary(session)
+
+    if not summary:
+        console.print("[yellow]No sync history yet. Run 'tendertracker run' first.[/yellow]")
+        raise typer.Exit()
+
+    table = Table(title="Source Health")
+    for column in ("Source", "Last Run", "Last Status", "Last Success", "Errors", "Total Runs"):
+        table.add_column(column)
+    for s in summary:
+        last_status = f"[red]{s.last_status}[/red]" if s.last_status == "failed" else s.last_status
+        last_success = str(s.last_success_at) if s.last_success_at else "[red]never[/red]"
+        table.add_row(
+            escape(s.source),
+            str(s.last_run_at) if s.last_run_at else "-",
+            last_status or "-",
+            last_success,
+            str(s.error_count),
+            str(s.total_runs),
+        )
+    console.print(table)
+
+
+@app.command()
+def errors(limit: int = typer.Option(20, help="Max number of recent error entries to show.")) -> None:
+    """List recent pipeline errors, most recent first."""
+    from .pipeline.health import get_recent_errors
+
+    engine = get_engine(settings.db_path)
+    with get_session_factory(engine)() as session:
+        logs = get_recent_errors(session, limit=limit)
+
+    if not logs:
+        console.print("[green]No errors recorded.[/green]")
+        raise typer.Exit()
+
+    for log in logs:
+        # Parentheses, not brackets, around the source — a literal "[x]" in
+        # the composed string gets parsed as Rich markup regardless of what
+        # escape() does to the *contents*, so avoid typing brackets ourselves.
+        console.print(f"[red]{log.started_at}[/red] ({escape(log.source)}) {escape(log.error_message)}")
 
 
 @app.command()
@@ -57,7 +124,7 @@ def sources() -> None:
         raise typer.Exit()
     for portal in portals:
         state = "enabled" if portal.enabled else "disabled"
-        console.print(f"- {portal.name} ({state}) -> {portal.scraper_class}")
+        console.print(f"- {escape(portal.name)} ({state}) -> {escape(portal.scraper_class)}")
 
 
 @app.command()
@@ -88,7 +155,7 @@ def run(
 
     for r in results:
         for msg in r.error_messages[:5]:
-            console.print(f"[red]  {r.source}: {msg}[/red]")
+            console.print(f"[red]  {escape(r.source)}: {escape(msg)}[/red]")
 
     if apply:
         _export_excel_and_cloud_sync()
@@ -109,7 +176,7 @@ def _export_excel_and_cloud_sync() -> None:
         if result is not None:
             console.print(f"[green]Cloud sync:[/green] {result.get('webUrl', settings.ms_graph_upload_path)}")
     except Exception as exc:
-        console.print(f"[red]Cloud sync failed: {exc}[/red]")
+        console.print(f"[red]Cloud sync failed: {escape(str(exc))}[/red]")
 
 
 def _sync_pipedrive_if_configured() -> None:
@@ -122,7 +189,7 @@ def _sync_pipedrive_if_configured() -> None:
         f"[green]Pipedrive synced:[/green] {result.created} created, {result.updated} updated, {result.errors} errors"
     )
     for msg in result.error_messages[:5]:
-        console.print(f"[red]  {msg}[/red]")
+        console.print(f"[red]  {escape(msg)}[/red]")
 
 
 def _sync_calendar_if_configured() -> None:
@@ -136,7 +203,7 @@ def _sync_calendar_if_configured() -> None:
         f"{result.unchanged} unchanged, {result.deleted} deleted, {result.errors} errors"
     )
     for msg in result.error_messages[:5]:
-        console.print(f"[red]  {msg}[/red]")
+        console.print(f"[red]  {escape(msg)}[/red]")
 
 
 @app.command()
@@ -182,7 +249,7 @@ def sync_pipedrive_cmd(
     console.print(mode)
     console.print(f"Created: {result.created}  Updated: {result.updated}  Errors: {result.errors}")
     for msg in result.error_messages[:5]:
-        console.print(f"[red]  {msg}[/red]")
+        console.print(f"[red]  {escape(msg)}[/red]")
 
 
 @app.command(name="sync-calendar")
@@ -209,7 +276,7 @@ def sync_calendar_cmd(
         f"Deleted: {result.deleted}  Errors: {result.errors}"
     )
     for msg in result.error_messages[:5]:
-        console.print(f"[red]  {msg}[/red]")
+        console.print(f"[red]  {escape(msg)}[/red]")
 
 
 @app.command()
@@ -227,13 +294,17 @@ def reconcile() -> None:
         for column in ("External ID", "Field", "DB value", "Other value", "Other system"):
             table.add_column(column)
         for d in result.discrepancies:
-            table.add_row(d.external_id, d.field, d.db_value, d.other_value, d.other_system)
+            # DB/other values are human-editable content from Excel or
+            # Pipedrive — escape before it reaches Rich's markup parser.
+            table.add_row(
+                escape(d.external_id), d.field, escape(d.db_value), escape(d.other_value), d.other_system
+            )
         console.print(table)
     else:
         console.print("[green]No discrepancies found.[/green]")
 
     for err in result.errors:
-        console.print(f"[red]{err}[/red]")
+        console.print(f"[red]{escape(err)}[/red]")
 
 
 if __name__ == "__main__":

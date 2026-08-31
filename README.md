@@ -10,9 +10,9 @@ generic, sanitized logic only. No employer-specific data, workflows, or branding
 🚧 Early development. Core pipeline plus governance layer are complete: DB
 models, config loading, CLI, scraper interface, the daily pipeline
 (normalize/filter/dedupe/store), Excel export, optional cloud sync
-(OneDrive/SharePoint + Outlook calendar), Pipedrive deal sync, and read-only
-reconciliation checks. Remaining work is polish (health CLI, docs, tests) —
-see
+(OneDrive/SharePoint + Outlook calendar), Pipedrive deal sync, read-only
+reconciliation checks, and per-source health/error reporting. Remaining
+work is a scheduled workflow, docs, and tests — see
 [open issues](https://github.com/codeapplied/tender-tracking-system/issues)
 and the [project board](https://github.com/users/codeapplied/projects/4).
 
@@ -33,11 +33,24 @@ cp config/portals.example.yaml config/portals.yaml
 tendertracker init
 ```
 
+## Troubleshooting
+
+**Windows Application Control policy blocks `tendertracker.exe`**: on some
+locked-down Windows machines, the venv's generated launcher `.exe` gets
+blocked outright. Run via the module instead, which sidesteps it entirely:
+`python -m tendertracker.cli <command>`.
+
 ## CLI
 
 - `tendertracker init` — create the database
-- `tendertracker status` — recent sync runs per source
+- `tendertracker status` — recent sync runs, most recent first, flat across
+  all sources
+- `tendertracker health` — per-source rollup instead: last run, last
+  success, error count, total runs — the "is anything actually broken" view
+- `tendertracker errors [--limit N]` — recent error messages, most recent
+  first
 - `tendertracker sources` — list configured portal sources
+- Pass `--verbose`/`-v` before any command for debug-level logging.
 - `tendertracker run` — run the daily fetch pipeline. **Plan-only by default**
   (fetches, normalizes, filters, computes what would change, logs the run —
   no DB writes). Pass `--apply` to actually write; on `--apply`, also
