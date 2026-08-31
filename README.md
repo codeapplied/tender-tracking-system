@@ -7,21 +7,25 @@ generic, sanitized logic only. No employer-specific data, workflows, or branding
 
 ## Status
 
-🚧 Early development. Core pipeline plus governance layer are complete: DB
-models, config loading, CLI, scraper interface, the daily pipeline
-(normalize/filter/dedupe/store), Excel export, optional cloud sync
-(OneDrive/SharePoint + Outlook calendar), Pipedrive deal sync, read-only
-reconciliation checks, and per-source health/error reporting. Remaining
-work is a scheduled workflow, docs, and tests — see
-[open issues](https://github.com/codeapplied/tender-tracking-system/issues)
-and the [project board](https://github.com/users/codeapplied/projects/4).
+The originally-scoped build is complete: DB models, config loading, CLI,
+scraper interface, the daily pipeline (normalize/filter/dedupe/store),
+Excel export, optional cloud sync (OneDrive/SharePoint + Outlook calendar),
+Pipedrive deal sync, read-only reconciliation checks, per-source
+health/error reporting, a scheduled GitHub Actions workflow, and a test
+suite (55 tests — see [Testing](#testing) below). See
+[closed issues](https://github.com/codeapplied/tender-tracking-system/issues?q=is%3Aissue+is%3Aclosed)
+for the full build history and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it fits together.
 
 ## Architecture
 
-Daily scheduled run → per-source scraper/API client → normalize into a common
-`Tender` record → dedupe against the DB → export to Excel → sync to Pipedrive
-as deals. Every run is logged to `SyncLog`, which the ops CLI reads for pipeline
-health (last run per source, error counts).
+Daily scheduled run → per-source scraper/API client → relevance filter →
+normalize into a common `Tender` record → dedupe against the DB → export to
+Excel → sync to Pipedrive as deals → optionally sync to a calendar. Every
+run is logged to `SyncLog`, which the ops CLI reads for pipeline health
+(last run per source, error counts). Full breakdown, module responsibilities,
+and the reasoning behind the key design decisions:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Setup
 
@@ -82,6 +86,28 @@ blocked outright. Run via the module instead, which sidesteps it entirely:
   Pipedrive's own UI). Reports discrepancies for a human to resolve; **never
   writes a fix itself** — matches the governance-over-automation approach
   documented for the rest of this project.
+
+## Testing
+
+```
+uv pip install -e ".[dev]"
+pytest
+```
+
+55 tests covering: normalize (date parsing, per-source field mapping),
+relevance filtering, the core pipeline (dedup, field-level authority,
+per-record error isolation — using a real temp SQLite DB, not mocked), and
+every external integration (Pipedrive, OneDrive/SharePoint, Outlook
+Calendar) via mocked HTTP request-shape assertions, since no live
+credentials for those services are available in CI. Pipedrive/calendar/
+reconciliation orchestration logic is tested against a real DB with the
+external client mocked — covering dry-run-vs-apply, idempotency, and the
+create-then-update transition.
+
+## Adding a source or a sync target
+
+See [docs/ADDING_A_SCRAPER.md](docs/ADDING_A_SCRAPER.md) and
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## License
 

@@ -1,0 +1,65 @@
+name: Daily Tender Fetch
+
+# NOTE on persistence: GitHub Actions runners are ephemeral — nothing
+# written during a run survives to the next one on its own. This workflow
+# uses actions/cache as a lightweight way to carry the SQLite DB across runs
+# (a common small-project pattern), NOT a substitute for real infrastructure.
+# The cache can be evicted (7-day unused eviction, repo size limits) without
+# warning. For real production use, run `tendertracker run --apply` on a
+# persistent host (a small VM, a container with a mounted volume, etc.)
+# instead of relying on this workflow's cache.
+
+on:
+  schedule:
+    - cron: "0 13 * * *" # 13:00 UTC daily — adjust to your timezone/needs
+  workflow_dispatch: {} # manual "Run workflow" button in the Actions tab
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project
+        run: pip install -e .
+
+      - name: Restore DB cache
+        uses: actions/cache@v4
+        with:
+          path: data/tenders.db
+          key: tender-db-${{ github.run_id }}
+          restore-keys: |
+            tender-db-
+
+      - name: Ensure portals.yaml exists
+        run: |
+          if [ ! -f config/portals.yaml ]; then
+            cp config/portals.example.yaml config/portals.yaml
+          fi
+
+      - name: Initialize database (no-op if it already exists)
+        run: tendertracker init
+
+      - name: Run pipeline
+        run: tendertracker run --apply
+        env:
+          PIPEDRIVE_API_TOKEN: ${{ secrets.PIPEDRIVE_API_TOKEN }}
+          PIPEDRIVE_DOMAIN: ${{ secrets.PIPEDRIVE_DOMAIN }}
+          MS_GRAPH_TENANT_ID: ${{ secrets.MS_GRAPH_TENANT_ID }}
+          MS_GRAPH_CLIENT_ID: ${{ secrets.MS_GRAPH_CLIENT_ID }}
+          MS_GRAPH_CLIENT_SECRET: ${{ secrets.MS_GRAPH_CLIENT_SECRET }}
+          MS_GRAPH_DRIVE_ID: ${{ secrets.MS_GRAPH_DRIVE_ID }}
+          MS_GRAPH_UPLOAD_PATH: ${{ secrets.MS_GRAPH_UPLOAD_PATH }}
+          MS_GRAPH_CALENDAR_USER_ID: ${{ secrets.MS_GRAPH_CALENDAR_USER_ID }}
+
+      - name: Upload Excel tracker as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenders-xlsx
+          path: data/tenders.xlsx
+          retention-days: 30
+          if-no-files-found: ignore
