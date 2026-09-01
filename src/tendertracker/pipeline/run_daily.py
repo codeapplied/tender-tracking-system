@@ -1,13 +1,17 @@
 import importlib
 import logging
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Session
 
-from ..config import PortalConfig, load_portals, settings
+from ..config import PortalConfig, load_portals
 from ..scrapers.base import Scraper
 from ..storage.db import get_engine, get_session_factory
 from ..storage.models import SyncLog, Tender, utcnow
+
+if TYPE_CHECKING:
+    from ..config import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -90,12 +94,17 @@ def run_source(session: Session, portal: PortalConfig) -> RunResult:
     return result
 
 
-def run_all(apply: bool = False) -> list[RunResult]:
+def run_all(settings: "Settings", apply: bool = False) -> list[RunResult]:
     """Run the pipeline across all enabled sources.
 
     Defaults to plan-only (apply=False): computes what would change, records
     a SyncLog entry either way, but rolls back the Tender writes instead of
     committing them. Pass apply=True to actually write.
+
+    Takes `settings` explicitly, matching sync_pipedrive/sync_calendar/
+    reconcile — this used to read the global config.settings singleton
+    directly, the only pipeline module that did, which made it harder to
+    test in isolation and inconsistent with the rest of the codebase.
     """
     portals = [p for p in load_portals() if p.enabled]
     if not portals:

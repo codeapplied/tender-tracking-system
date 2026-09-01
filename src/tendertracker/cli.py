@@ -136,7 +136,7 @@ def run(
     """Run the daily fetch pipeline. Plan-only by default — pass --apply to write for real."""
     from .pipeline.run_daily import run_all
 
-    results = run_all(apply=apply)
+    results = run_all(settings, apply=apply)
     if not results:
         console.print(
             "[yellow]No enabled sources to run. Copy config/portals.example.yaml to config/portals.yaml.[/yellow]"
