@@ -11,7 +11,7 @@ def client():
 
 
 def test_find_or_create_organization_returns_existing_match(client):
-    with patch("tendertracker.integrations.pipedrive.requests.request") as mock_req:
+    with patch("requests.Session.request") as mock_req:
         mock_req.return_value = MagicMock(
             ok=True,
             json=lambda: {"success": True, "data": {"items": [{"item": {"id": 42, "name": "Acme Co"}}]}},
@@ -32,14 +32,14 @@ def test_find_or_create_organization_creates_when_not_found(client):
             return MagicMock(ok=True, json=lambda: {"success": True, "data": {"items": []}})
         return MagicMock(ok=True, json=lambda: {"success": True, "data": {"id": 99}})
 
-    with patch("tendertracker.integrations.pipedrive.requests.request", side_effect=side_effect):
+    with patch("requests.Session.request", side_effect=side_effect):
         org_id = client.find_or_create_organization("New Org")
 
     assert org_id == 99
 
 
 def test_create_deal_request_shape(client):
-    with patch("tendertracker.integrations.pipedrive.requests.request") as mock_req:
+    with patch("requests.Session.request") as mock_req:
         mock_req.return_value = MagicMock(ok=True, json=lambda: {"success": True, "data": {"id": 7}})
         deal = client.create_deal("Test Deal", org_id=99, value=1000.0, currency="CAD")
 
@@ -51,7 +51,7 @@ def test_create_deal_request_shape(client):
 
 
 def test_update_deal_request_shape(client):
-    with patch("tendertracker.integrations.pipedrive.requests.request") as mock_req:
+    with patch("requests.Session.request") as mock_req:
         mock_req.return_value = MagicMock(ok=True, json=lambda: {"success": True, "data": {"id": 7}})
         client.update_deal(7, "Updated Title", 2000.0, "CAD")
 
@@ -61,7 +61,7 @@ def test_update_deal_request_shape(client):
 
 
 def test_add_note_request_shape(client):
-    with patch("tendertracker.integrations.pipedrive.requests.request") as mock_req:
+    with patch("requests.Session.request") as mock_req:
         mock_req.return_value = MagicMock(ok=True, json=lambda: {"success": True, "data": {}})
         client.add_note(7, "some note")
 
@@ -72,7 +72,7 @@ def test_add_note_request_shape(client):
 
 
 def test_get_deal_request_shape(client):
-    with patch("tendertracker.integrations.pipedrive.requests.request") as mock_req:
+    with patch("requests.Session.request") as mock_req:
         mock_req.return_value = MagicMock(ok=True, json=lambda: {"success": True, "data": {"id": 7, "title": "X"}})
         deal = client.get_deal(7)
 
@@ -83,14 +83,14 @@ def test_get_deal_request_shape(client):
 
 
 def test_non_ok_response_raises_pipedrive_error(client):
-    with patch("tendertracker.integrations.pipedrive.requests.request") as mock_req:
+    with patch("requests.Session.request") as mock_req:
         mock_req.return_value = MagicMock(ok=False, status_code=401, text="Unauthorized")
         with pytest.raises(PipedriveError, match="401"):
             client.create_deal("X", None, None, None)
 
 
 def test_success_false_raises_pipedrive_error(client):
-    with patch("tendertracker.integrations.pipedrive.requests.request") as mock_req:
+    with patch("requests.Session.request") as mock_req:
         mock_req.return_value = MagicMock(ok=True, json=lambda: {"success": False, "error": "bad request"})
         with pytest.raises(PipedriveError, match="success=false"):
             client.create_deal("X", None, None, None)

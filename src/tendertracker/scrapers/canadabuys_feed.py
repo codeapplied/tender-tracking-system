@@ -3,8 +3,7 @@ import io
 import logging
 from typing import Iterator
 
-import requests
-
+from ..http_client import get_session
 from .base import RawTender, Scraper
 
 logger = logging.getLogger(__name__)
@@ -46,7 +45,7 @@ class CanadaBuysFeedScraper(Scraper):
         self.headers = headers or {"User-Agent": self.DEFAULT_USER_AGENT}
 
     def fetch(self) -> Iterator[RawTender]:
-        response = requests.get(self.feed_url, headers=self.headers, timeout=self.timeout)
+        response = get_session().get(self.feed_url, headers=self.headers, timeout=self.timeout)
         response.raise_for_status()
         # utf-8-sig strips the BOM this feed is published with.
         reader = csv.DictReader(io.StringIO(response.content.decode("utf-8-sig")))

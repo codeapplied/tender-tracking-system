@@ -1,8 +1,7 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import requests
-
+from ..http_client import get_session
 from .graph_auth import GRAPH_BASE, get_access_token
 
 if TYPE_CHECKING:
@@ -39,7 +38,7 @@ def sync_file_to_onedrive(
     content = Path(local_path).read_bytes()
 
     url = f"{GRAPH_BASE}/drives/{drive_id}/root:/{remote_path}:/content"
-    response = requests.put(
+    response = get_session().put(
         url,
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/octet-stream"},
         data=content,
