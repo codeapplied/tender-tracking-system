@@ -19,28 +19,33 @@ class SourceHealth:
 def get_health_summary(session: Session) -> list[SourceHealth]:
     """Per-source rollup — the "at a glance" view an ops user actually
     wants, versus `status`'s flat recent-runs-across-all-sources list where
-    a quiet source's last run can get buried by a noisy one."""
-    sources = sorted(row[0] for row in session.query(SyncLog.source).distinct().all())
+    a quiet source's last run can get buried by a noisy one.
+
+    One query fetches every SyncLog row (newest first), then aggregates per
+    source in Python — previously 4 separate queries per source (4N+1
+    total), fine at this project's real scale (a handful of sources) but a
+    real inefficiency if it ever needs to track many.
+    """
+    logs = session.query(SyncLog).order_by(SyncLog.started_at.desc()).all()
+
+    by_source: dict[str, list[SyncLog]] = {}
+    for log in logs:
+        by_source.setdefault(log.source, []).append(log)
 
     summary = []
-    for source in sources:
-        last_run = session.query(SyncLog).filter_by(source=source).order_by(SyncLog.started_at.desc()).first()
-        last_success = (
-            session.query(SyncLog)
-            .filter_by(source=source, status="success")
-            .order_by(SyncLog.started_at.desc())
-            .first()
-        )
-        error_count = session.query(SyncLog).filter(SyncLog.source == source, SyncLog.error_message.isnot(None)).count()
-        total_runs = session.query(SyncLog).filter_by(source=source).count()
+    for source in sorted(by_source):
+        source_logs = by_source[source]  # already newest-first
+        last_run = source_logs[0]
+        last_success = next((log for log in source_logs if log.status == "success"), None)
+        error_count = sum(1 for log in source_logs if log.error_message is not None)
         summary.append(
             SourceHealth(
                 source=source,
-                last_run_at=last_run.started_at if last_run else None,
-                last_status=last_run.status if last_run else None,
+                last_run_at=last_run.started_at,
+                last_status=last_run.status,
                 last_success_at=last_success.started_at if last_success else None,
                 error_count=error_count,
-                total_runs=total_runs,
+                total_runs=len(source_logs),
             )
         )
     return summary
