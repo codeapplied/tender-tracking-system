@@ -158,7 +158,11 @@ makes zero API calls.
 DB, the exported Excel file, and (if configured) live Pipedrive state, and
 reports differences on a small, explicit set of fields — it does not decide
 which system is "right" or write a fix. That decision is left to a human,
-by design.
+by design. It also reports what it actually had available to compare
+against (`excel_available`, `pipedrive_configured`) — "no discrepancies
+found" only means something if at least one comparison actually ran; a repo
+where Excel was never exported and Pipedrive isn't configured would
+otherwise report a misleadingly clean result.
 
 **Naive UTC everywhere, not timezone-aware datetimes.** SQLite doesn't
 preserve timezone info across a save/reload — a timezone-aware value read

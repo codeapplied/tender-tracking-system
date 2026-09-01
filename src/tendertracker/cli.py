@@ -174,7 +174,7 @@ def _export_excel_and_cloud_sync() -> None:
     try:
         result = sync_excel_if_configured(settings)
         if result is not None:
-            console.print(f"[green]Cloud sync:[/green] {result.get('webUrl', settings.ms_graph_upload_path)}")
+            console.print(f"[green]Cloud sync:[/green] {escape(result.get('webUrl', settings.ms_graph_upload_path))}")
     except Exception as exc:
         console.print(f"[red]Cloud sync failed: {escape(str(exc))}[/red]")
 
@@ -226,7 +226,7 @@ def sync_cloud() -> None:
         raise typer.Exit(code=1)
 
     result = sync_excel_if_configured(settings)
-    console.print(f"[green]Cloud sync:[/green] {result.get('webUrl', settings.ms_graph_upload_path)}")
+    console.print(f"[green]Cloud sync:[/green] {escape(result.get('webUrl', settings.ms_graph_upload_path))}")
 
 
 @app.command(name="sync-pipedrive")
@@ -288,6 +288,17 @@ def reconcile() -> None:
 
     result = run_reconcile(settings)
     console.print(f"Checked {result.checked} tenders.")
+    console.print(
+        f"Excel comparison: {'available' if result.excel_available else '[yellow]skipped — no exported .xlsx found, run tendertracker export first[/yellow]'}"
+    )
+    console.print(
+        f"Pipedrive comparison: {'available' if result.pipedrive_configured else '[yellow]skipped — not configured[/yellow]'}"
+    )
+
+    if not result.excel_available and not result.pipedrive_configured:
+        console.print(
+            "[yellow]Nothing was actually compared — 'no discrepancies' below doesn't mean verified in sync.[/yellow]"
+        )
 
     if result.discrepancies:
         table = Table(title="Discrepancies")
