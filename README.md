@@ -1,5 +1,9 @@
 # Tender Tracking System
 
+[![Tests](https://github.com/codeapplied/tender-tracking-system/actions/workflows/tests.yml/badge.svg)](https://github.com/codeapplied/tender-tracking-system/actions/workflows/tests.yml)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue.svg)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A tender/bid tracking tool — rebuilt as a generalized, open-source system.
 
 Originally built as an internal work tool; this repo is a from-scratch rebuild using
@@ -19,13 +23,47 @@ for the full build history and
 
 ## Architecture
 
-Daily scheduled run → per-source scraper/API client → relevance filter →
-normalize into a common `Tender` record → dedupe against the DB → export to
-Excel → sync to Pipedrive as deals → optionally sync to a calendar. Every
-run is logged to `SyncLog`, which the ops CLI reads for pipeline health
-(last run per source, error counts). Full breakdown, module responsibilities,
-and the reasoning behind the key design decisions:
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+```mermaid
+flowchart LR
+    A["Scheduled trigger"] --> B["Scraper.fetch()"]
+    B --> C{"Relevance filter"}
+    C -->|dropped| D["counted, not stored"]
+    C -->|passes| E["normalize"]
+    E --> F[("DB upsert<br/>dedup + field authority")]
+    F --> G["Excel export"]
+    F --> H["Pipedrive sync"]
+    F --> I["Calendar sync"]
+    G --> J["Cloud sync"]
+    F -.read-only.-> K["Reconcile:<br/>DB vs Excel vs Pipedrive"]
+```
+
+Every run is logged to `SyncLog`, which the ops CLI reads for pipeline
+health (last run per source, error counts). Full breakdown, module
+responsibilities, a sequence diagram of one daily run, and the reasoning
+behind the key design decisions (dry-run-by-default, field-level authority,
+local-snapshot diffing): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## In action
+
+Real output from the actual CLI (sandbox data, default relevance filter) —
+not mockups. Regenerate these with `python scripts/generate_readme_assets.py`
+after any CLI change.
+
+**`tendertracker run --apply`** — fetches, filters (4 of 5 sample records
+correctly dropped by the default EV/charging relevance filter), stores, and
+re-syncs Excel in one command:
+
+![tendertracker run --apply output](docs/assets/cli-run.svg)
+
+**`tendertracker health`** — per-source rollup: last run, last success,
+error count:
+
+![tendertracker health output](docs/assets/cli-health.svg)
+
+**`tendertracker reconcile`** — catches a status that was edited directly in
+Excel and never made it back to the DB, without writing anything itself:
+
+![tendertracker reconcile output](docs/assets/cli-reconcile.svg)
 
 ## Setup
 

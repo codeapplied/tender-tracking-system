@@ -2,32 +2,62 @@
 
 ## Data flow
 
-```
-scheduled trigger (cron / GitHub Actions / manual)
-        │
-        ▼
-per-source Scraper.fetch()  ──►  RawTender (source-specific raw dict)
-        │
-        ▼
-relevance filter (must_match / boost / exclude, per-portal, optional)
-        │  non-matching records dropped, counted, never stored
-        ▼
-normalize()  ──►  common Tender field set
-        │
-        ▼
-upsert into DB (dedup by source + external_id, field-level authority)
-        │
-        ├──► Excel export (Active/Archived sheets, regenerated from DB)
-        │        └──► optional cloud sync (OneDrive/SharePoint)
-        ├──► optional Pipedrive sync (org find-or-create → deal → note)
-        └──► optional calendar sync (Outlook event per open tender)
-
-separately, on demand:
-reconcile  ──►  read-only diff: DB vs Excel (status), DB vs Pipedrive (title/value)
+```mermaid
+flowchart TD
+    A["Scheduled trigger<br/>cron / GitHub Actions / manual"] --> B["Scraper.fetch()<br/>per source"]
+    B --> C["RawTender<br/>source-specific raw dict"]
+    C --> D{"Relevance filter<br/>must_match / boost / exclude<br/>per-portal, optional"}
+    D -->|dropped| E["counted as filtered,<br/>never stored"]
+    D -->|passes| F["normalize()"]
+    F --> G["common Tender field set"]
+    G --> H[("Upsert into DB<br/>dedup by source+external_id<br/>field-level authority")]
+    H --> I["Excel export<br/>Active/Archived sheets"]
+    I --> J["optional cloud sync<br/>OneDrive/SharePoint"]
+    H --> K["optional Pipedrive sync<br/>org find-or-create then deal then note"]
+    H --> L["optional calendar sync<br/>Outlook event per open tender"]
+    H -.on demand, read-only.-> M["reconcile:<br/>DB vs Excel status,<br/>DB vs Pipedrive title/value"]
+    I -.-> M
+    K -.-> M
 ```
 
 Every pipeline run writes a `SyncLog` row (per source, per run) — what
 `tendertracker status`/`health`/`errors` read.
+
+## Sequence: one daily run
+
+```mermaid
+sequenceDiagram
+    participant CLI as tendertracker run --apply
+    participant Scraper
+    participant Filter as Relevance filter
+    participant DB
+    participant Excel
+    participant Pipedrive
+    participant Calendar
+
+    CLI->>Scraper: fetch()
+    Scraper-->>CLI: RawTender records
+    loop each record
+        CLI->>Filter: evaluate(title + description)
+        alt passes
+            CLI->>CLI: normalize(raw)
+            CLI->>DB: upsert (dedup, field authority)
+        else fails
+            CLI->>CLI: drop, count as filtered
+        end
+    end
+    CLI->>DB: write SyncLog row
+    CLI->>Excel: export_to_excel()
+    Excel-->>CLI: Active/Archived sheets written
+    opt Pipedrive configured
+        CLI->>Pipedrive: sync (create/update deals)
+        Pipedrive-->>CLI: deal IDs persisted back to DB
+    end
+    opt Calendar configured
+        CLI->>Calendar: sync (create/update/delete events)
+        Calendar-->>CLI: event IDs persisted back to DB
+    end
+```
 
 ## Components
 
@@ -56,6 +86,48 @@ Integration clients (`integrations/*.py`) contain no DB or business logic —
 they're thin API wrappers. Orchestration (what to sync, when, and how to
 decide something changed) lives in `pipeline/*.py`. This split is what
 makes each piece independently testable with mocks.
+
+```mermaid
+flowchart TB
+    CLI["cli.py"]
+
+    subgraph Pipeline["pipeline/ (orchestration)"]
+        relevance["relevance.py"]
+        normalize["normalize.py"]
+        run_daily["run_daily.py"]
+        sync_pipedrive["sync_pipedrive.py"]
+        sync_calendar["sync_calendar.py"]
+        reconcile["reconcile.py"]
+        health["health.py"]
+    end
+
+    subgraph Scrapers["scrapers/"]
+        base["base.py"]
+        sources["sandbox_feed.py, canadabuys_feed.py, etc."]
+    end
+
+    subgraph Storage["storage/"]
+        models["models.py"]
+        db["db.py"]
+        excel_export["excel_export.py"]
+    end
+
+    subgraph Integrations["integrations/ (thin API clients)"]
+        pipedrive_client["pipedrive.py"]
+        onedrive_client["onedrive_sync.py"]
+        calendar_client["calendar_sync.py"]
+        graph_auth["graph_auth.py"]
+    end
+
+    CLI --> Pipeline
+    run_daily --> Scrapers
+    Pipeline --> Storage
+    sync_pipedrive --> pipedrive_client
+    sync_calendar --> calendar_client
+    reconcile --> pipedrive_client
+    onedrive_client --> graph_auth
+    calendar_client --> graph_auth
+```
 
 ## Design decisions
 
