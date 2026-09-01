@@ -1,8 +1,9 @@
 from tendertracker.config import PortalConfig
 from tendertracker.pipeline.relevance import RelevanceRules
-from tendertracker.pipeline.run_daily import run_source
+from tendertracker.pipeline.run_daily import run_all, run_source
 from tendertracker.scrapers.base import RawTender, Scraper
-from tendertracker.storage.models import Tender
+from tendertracker.storage.db import get_engine, get_session_factory, init_db
+from tendertracker.storage.models import SyncLog, Tender
 
 SANDBOX_PORTAL = PortalConfig(
     name="sandbox",
@@ -78,3 +79,49 @@ def test_run_source_isolates_a_single_bad_record(db_session, monkeypatch):
     assert result.new == 2  # the two good records still made it through
     assert result.errors == 1
     assert "BAD-1" in result.error_messages[0]
+
+
+# --- run_all(): only testable in isolation because it now takes `settings`
+# explicitly instead of reading the global config.settings singleton — the
+# fix for the run_daily/settings inconsistency this replaced. ---------------
+
+
+def test_run_all_dry_run_writes_synclog_but_not_tenders(tmp_settings, monkeypatch):
+    import tendertracker.pipeline.run_daily as run_daily_module
+
+    init_db(get_engine(tmp_settings.db_path))
+    monkeypatch.setattr(run_daily_module, "load_portals", lambda: [SANDBOX_PORTAL])
+
+    results = run_all(tmp_settings, apply=False)
+    assert len(results) == 1
+    assert results[0].new == 5
+
+    with get_session_factory(get_engine(tmp_settings.db_path))() as s:
+        assert s.query(Tender).count() == 0
+        assert s.query(SyncLog).one().status == "dry-run"
+
+
+def test_run_all_apply_writes_tenders_and_synclog(tmp_settings, monkeypatch):
+    import tendertracker.pipeline.run_daily as run_daily_module
+
+    init_db(get_engine(tmp_settings.db_path))
+    monkeypatch.setattr(run_daily_module, "load_portals", lambda: [SANDBOX_PORTAL])
+
+    results = run_all(tmp_settings, apply=True)
+    assert results[0].new == 5
+
+    with get_session_factory(get_engine(tmp_settings.db_path))() as s:
+        assert s.query(Tender).count() == 5
+        assert s.query(SyncLog).one().status == "success"
+
+
+def test_run_all_skips_disabled_portals(tmp_settings, monkeypatch):
+    import tendertracker.pipeline.run_daily as run_daily_module
+
+    init_db(get_engine(tmp_settings.db_path))
+    disabled = PortalConfig(
+        name="sandbox", scraper_class="tendertracker.scrapers.sandbox_feed.SandboxFeedScraper", enabled=False
+    )
+    monkeypatch.setattr(run_daily_module, "load_portals", lambda: [disabled])
+
+    assert run_all(tmp_settings, apply=True) == []
