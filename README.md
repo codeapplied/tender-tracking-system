@@ -137,10 +137,14 @@ relevance filtering, the core pipeline (dedup, field-level authority,
 per-record error isolation — using a real temp SQLite DB, not mocked), and
 every external integration (Pipedrive, OneDrive/SharePoint, Outlook
 Calendar) via mocked HTTP request-shape assertions, since no live
-credentials for those services are available in CI. Pipedrive/calendar/
-reconciliation orchestration logic is tested against a real DB with the
-external client mocked — covering dry-run-vs-apply, idempotency, and the
-create-then-update transition.
+credentials for those services are available in CI. Pipedrive and calendar
+sync orchestration are each tested against a real DB with the external
+client mocked, covering dry-run-vs-apply, idempotency, and the
+create-then-update transition. Reconciliation orchestration is tested
+separately against a real DB and a real generated Excel file (plus a mocked
+Pipedrive client) — read-only behavior is asserted directly (confirms zero
+writes), along with correctly distinguishing "verified in sync" from
+"nothing was available to compare against."
 
 ## Adding a source or a sync target
 

@@ -24,6 +24,21 @@ def test_no_drift_on_fresh_export(populated):
     result = reconcile(settings)
     assert result.checked == 5
     assert result.discrepancies == []
+    assert result.excel_available is True
+    assert result.pipedrive_configured is False
+
+
+def test_excel_unavailable_when_never_exported(tmp_settings, db_session):
+    """Distinct from 'no discrepancies' — nothing to compare against yet,
+    since export was never run. Regression test for a real gap: this used
+    to be indistinguishable from a genuinely-verified clean result."""
+    run_source(db_session, SANDBOX_PORTAL)
+    db_session.commit()
+
+    result = reconcile(tmp_settings)
+    assert result.excel_available is False
+    assert result.pipedrive_configured is False
+    assert result.discrepancies == []  # would misleadingly look "clean" without the availability flags
 
 
 def test_catches_status_edited_directly_in_excel(populated):
@@ -79,6 +94,7 @@ def test_pipedrive_value_drift_detected(populated):
     value_discrepancies = [d for d in result.discrepancies if d.field == "estimated_value"]
     assert len(value_discrepancies) == 1
     assert value_discrepancies[0].other_system == "pipedrive"
+    assert result.pipedrive_configured is True
 
 
 def test_pipedrive_fetch_failure_recorded_as_error_not_crash(populated):
