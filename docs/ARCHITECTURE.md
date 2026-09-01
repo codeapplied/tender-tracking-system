@@ -171,6 +171,17 @@ underlying instant is identical. This caused a real bug (unchanged records
 misreported as "updated") before being standardized on naive-UTC (see
 `storage/models.py`'s `utcnow()`).
 
+**Retry with backoff, but never on POST.** Every outbound HTTP call goes
+through `http_client.get_session()` — a `requests.Session` with automatic
+retry and exponential backoff for connection errors and 502/503/504. It
+deliberately relies on urllib3's default allowed-methods policy (GET, PUT,
+DELETE — not POST), since blindly retrying a failed POST risks creating a
+duplicate record if the original request actually reached the server but
+the response was lost. Every create-type call in this project (Pipedrive
+deal/organization/note creation, calendar event creation, Graph token
+requests) is a POST and intentionally does not get automatic retries for
+this reason.
+
 ## Adding a new data source
 
 See [ADDING_A_SCRAPER.md](ADDING_A_SCRAPER.md).

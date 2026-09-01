@@ -31,9 +31,9 @@ def test_sync_file_to_onedrive_request_shape(tmp_path):
     local_file.write_bytes(b"fake-excel-bytes")
 
     with patch("tendertracker.integrations.onedrive_sync.get_access_token", return_value="FAKE_TOKEN"), patch(
-        "tendertracker.integrations.onedrive_sync.requests.put"
-    ) as mock_put:
-        mock_put.return_value = MagicMock(
+        "requests.Session.request"
+    ) as mock_req:
+        mock_req.return_value = MagicMock(
             status_code=201, json=lambda: {"webUrl": "https://example.sharepoint.com/fake"}
         )
         result = sync_file_to_onedrive(
@@ -46,8 +46,9 @@ def test_sync_file_to_onedrive_request_shape(tmp_path):
         )
 
     assert result == {"webUrl": "https://example.sharepoint.com/fake"}
-    call = mock_put.call_args
-    assert call.args[0] == "https://graph.microsoft.com/v1.0/drives/DRIVE123/root:/TenderTracker/tenders.xlsx:/content"
+    call = mock_req.call_args
+    assert call.args[0] == "PUT"
+    assert call.args[1] == "https://graph.microsoft.com/v1.0/drives/DRIVE123/root:/TenderTracker/tenders.xlsx:/content"
     assert call.kwargs["headers"]["Authorization"] == "Bearer FAKE_TOKEN"
     assert call.kwargs["data"] == b"fake-excel-bytes"
 
@@ -65,8 +66,8 @@ def test_sync_file_to_onedrive_raises_on_failed_upload(tmp_path):
     local_file.write_bytes(b"data")
 
     with patch("tendertracker.integrations.onedrive_sync.get_access_token", return_value="TOK"), patch(
-        "tendertracker.integrations.onedrive_sync.requests.put"
-    ) as mock_put:
-        mock_put.return_value = MagicMock(status_code=403, text="Forbidden")
+        "requests.Session.request"
+    ) as mock_req:
+        mock_req.return_value = MagicMock(status_code=403, text="Forbidden")
         with pytest.raises(OneDriveSyncError, match="403"):
             sync_file_to_onedrive(str(local_file), "D", "p", "T", "C", "S")

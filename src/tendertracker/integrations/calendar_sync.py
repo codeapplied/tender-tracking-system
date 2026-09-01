@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta
 
-import requests
-
+from ..http_client import get_session
 from .graph_auth import GRAPH_BASE, get_access_token
 
 EVENT_DURATION = timedelta(hours=1)
@@ -20,6 +19,7 @@ class CalendarClient:
         self.token = get_access_token(tenant_id, client_id, client_secret)
         self.user_id = user_id
         self.timeout = timeout
+        self.session = get_session()
 
     def _headers(self) -> dict:
         return {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
@@ -34,7 +34,7 @@ class CalendarClient:
         }
 
     def create_event(self, subject: str, start: datetime, body: str) -> dict:
-        response = requests.post(
+        response = self.session.post(
             f"{GRAPH_BASE}/users/{self.user_id}/events",
             headers=self._headers(),
             json=self._event_payload(subject, start, body),
@@ -45,7 +45,7 @@ class CalendarClient:
         return response.json()
 
     def update_event(self, event_id: str, subject: str, start: datetime, body: str) -> dict:
-        response = requests.patch(
+        response = self.session.patch(
             f"{GRAPH_BASE}/users/{self.user_id}/events/{event_id}",
             headers=self._headers(),
             json=self._event_payload(subject, start, body),
@@ -56,7 +56,7 @@ class CalendarClient:
         return response.json()
 
     def delete_event(self, event_id: str) -> None:
-        response = requests.delete(
+        response = self.session.delete(
             f"{GRAPH_BASE}/users/{self.user_id}/events/{event_id}", headers=self._headers(), timeout=self.timeout
         )
         # 404 is fine here — the event is already gone, which is the desired end state.

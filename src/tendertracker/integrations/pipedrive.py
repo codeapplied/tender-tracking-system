@@ -1,4 +1,4 @@
-import requests
+from ..http_client import get_session
 
 
 class PipedriveError(Exception):
@@ -13,11 +13,12 @@ class PipedriveClient:
         self.api_token = api_token
         self.base_url = f"https://{domain}.pipedrive.com/api/v1"
         self.timeout = timeout
+        self.session = get_session()
 
     def _request(self, method: str, path: str, *, params: dict | None = None, json: dict | None = None) -> dict:
         params = dict(params or {})
         params["api_token"] = self.api_token
-        response = requests.request(method, f"{self.base_url}{path}", params=params, json=json, timeout=self.timeout)
+        response = self.session.request(method, f"{self.base_url}{path}", params=params, json=json, timeout=self.timeout)
         if not response.ok:
             raise PipedriveError(f"{method} {path} failed: {response.status_code} {response.text}")
         data = response.json()

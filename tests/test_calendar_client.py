@@ -13,13 +13,14 @@ def client():
 
 
 def test_create_event_request_shape(client):
-    with patch("tendertracker.integrations.calendar_sync.requests.post") as mock_post:
-        mock_post.return_value = MagicMock(status_code=201, json=lambda: {"id": "EVT1"})
+    with patch("requests.Session.request") as mock_req:
+        mock_req.return_value = MagicMock(status_code=201, json=lambda: {"id": "EVT1"})
         event = client.create_event("Tender closing: X", datetime(2026, 9, 15, 14, 0, 0), "body text")
 
     assert event["id"] == "EVT1"
-    call = mock_post.call_args
-    assert call.args[0] == "https://graph.microsoft.com/v1.0/users/someone@example.com/events"
+    call = mock_req.call_args
+    assert call.args[0] == "POST"
+    assert call.args[1] == "https://graph.microsoft.com/v1.0/users/someone@example.com/events"
     assert call.kwargs["headers"]["Authorization"] == "Bearer FAKE_TOKEN"
     payload = call.kwargs["json"]
     assert payload["subject"] == "Tender closing: X"
@@ -28,21 +29,23 @@ def test_create_event_request_shape(client):
 
 
 def test_update_event_request_shape(client):
-    with patch("tendertracker.integrations.calendar_sync.requests.patch") as mock_patch:
-        mock_patch.return_value = MagicMock(status_code=200, json=lambda: {"id": "EVT1"})
+    with patch("requests.Session.request") as mock_req:
+        mock_req.return_value = MagicMock(status_code=200, json=lambda: {"id": "EVT1"})
         client.update_event("EVT1", "Updated", datetime(2026, 9, 16, 10, 0, 0), "body")
 
-    call = mock_patch.call_args
-    assert call.args[0] == "https://graph.microsoft.com/v1.0/users/someone@example.com/events/EVT1"
+    call = mock_req.call_args
+    assert call.args[0] == "PATCH"
+    assert call.args[1] == "https://graph.microsoft.com/v1.0/users/someone@example.com/events/EVT1"
 
 
 def test_delete_event_request_shape(client):
-    with patch("tendertracker.integrations.calendar_sync.requests.delete") as mock_delete:
-        mock_delete.return_value = MagicMock(status_code=204)
+    with patch("requests.Session.request") as mock_req:
+        mock_req.return_value = MagicMock(status_code=204)
         client.delete_event("EVT1")
 
-    call = mock_delete.call_args
-    assert call.args[0] == "https://graph.microsoft.com/v1.0/users/someone@example.com/events/EVT1"
+    call = mock_req.call_args
+    assert call.args[0] == "DELETE"
+    assert call.args[1] == "https://graph.microsoft.com/v1.0/users/someone@example.com/events/EVT1"
 
 
 def test_delete_event_tolerates_404():
@@ -50,13 +53,13 @@ def test_delete_event_tolerates_404():
     state — so this must not raise."""
     with patch("tendertracker.integrations.calendar_sync.get_access_token", return_value="TOK"):
         client = CalendarClient("T", "C", "S", "someone@example.com")
-    with patch("tendertracker.integrations.calendar_sync.requests.delete") as mock_delete:
-        mock_delete.return_value = MagicMock(status_code=404)
+    with patch("requests.Session.request") as mock_req:
+        mock_req.return_value = MagicMock(status_code=404)
         client.delete_event("EVT1")  # must not raise
 
 
 def test_create_event_raises_on_failure(client):
-    with patch("tendertracker.integrations.calendar_sync.requests.post") as mock_post:
-        mock_post.return_value = MagicMock(status_code=500, text="Server Error")
+    with patch("requests.Session.request") as mock_req:
+        mock_req.return_value = MagicMock(status_code=500, text="Server Error")
         with pytest.raises(CalendarSyncError, match="500"):
             client.create_event("X", datetime(2026, 1, 1), "b")
